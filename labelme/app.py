@@ -16,6 +16,7 @@ from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt
+from qtpy.QtWidgets import QInputDialog
 
 from labelme import __appname__
 from labelme._automation import bbox_from_text
@@ -230,6 +231,30 @@ class MainWindow(QtWidgets.QMainWindow):
             "open",
             self.tr("Open Dir"),
         )
+
+        setHeight = action(
+            self.tr("Set Height"),
+            self.setHeight,
+            "height",
+            self.tr("Set the predefined height"),
+        )
+
+
+        pointReco = action(
+            self.tr("Point & Text Recognition"),
+            self.pointReco,
+            "pointReco",
+            self.tr("Point & Text Recognition by opencv and API"),
+        )
+
+        addFlag = action(
+            self.tr("Add Flag"),
+            self.AddFlag,
+            "flag",
+            self.tr("Add Flag"),
+        )
+
+
         openNextImg = action(
             self.tr("&Next Image"),
             self.openNextImg,
@@ -1042,7 +1067,6 @@ class MainWindow(QtWidgets.QMainWindow):
             shape = Shape(
                 label=shape_dict["label"],
                 shape_type=shape_dict["shape_type"],
-                description=shape_dict["description"],
             )
             for point in shape_dict["points"]:
                 shape.addPoint(QtCore.QPointF(*point))
@@ -1168,15 +1192,11 @@ class MainWindow(QtWidgets.QMainWindow):
             edit_text = True
             edit_flags = True
             edit_group_id = True
-            edit_description = True
         else:
             edit_text = all(item.shape().label == shape.label for item in items[1:])
             edit_flags = all(item.shape().flags == shape.flags for item in items[1:])
             edit_group_id = all(
                 item.shape().group_id == shape.group_id for item in items[1:]
-            )
-            edit_description = all(
-                item.shape().description == shape.description for item in items[1:]
             )
 
         if not edit_text:
@@ -1184,14 +1204,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.labelDialog.labelList.setDisabled(True)
         if not edit_group_id:
             self.labelDialog.edit_group_id.setDisabled(True)
-        if not edit_description:
-            self.labelDialog.editDescription.setDisabled(True)
 
-        text, flags, group_id, description = self.labelDialog.popUp(
+
+        text, annotation, annotation_eng ,flags, group_id = self.labelDialog.popUp(
             text=shape.label if edit_text else "",
+            annotation=shape.annotation,
+            annotation_eng=shape.annotation_eng,
             flags=shape.flags if edit_flags else None,
             group_id=shape.group_id if edit_group_id else None,
-            description=shape.description if edit_description else None,
             flags_disabled=not edit_flags,
         )
 
@@ -1200,13 +1220,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.labelDialog.labelList.setDisabled(False)
         if not edit_group_id:
             self.labelDialog.edit_group_id.setDisabled(False)
-        if not edit_description:
-            self.labelDialog.editDescription.setDisabled(False)
 
         if text is None:
             assert flags is None
             assert group_id is None
-            assert description is None
             return
 
         if not self.validateLabel(text):
@@ -1224,12 +1241,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if edit_text:
                 shape.label = text
+                shape.annotation = annotation
+                shape.annotation_eng = annotation_eng
             if edit_flags:
                 shape.flags = flags
             if edit_group_id:
                 shape.group_id = group_id
-            if edit_description:
-                shape.description = description
 
             self._update_shape_color(shape)
             if shape.group_id is None:
@@ -1300,7 +1317,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.uniqLabelList.addItem(item)
             rgb = self._get_rgb_by_label(shape.label)
             self.uniqLabelList.setItemLabel(item, shape.label, rgb)
-        self.labelDialog.addLabelHistory(shape.label)
+        # self.labelDialog.addLabelHistory(shape.label)
         for action in self.actions.onShapesPresent:  # type: ignore[attr-defined]
             action.setEnabled(True)
 
@@ -1358,10 +1375,11 @@ class MainWindow(QtWidgets.QMainWindow):
         s = []
         for shape in shapes:
             label = shape["label"]
+            annotation = shape["annotation"]
+            annotation_eng = shape["annotation_eng"]
             points = shape["points"]
             shape_type = shape["shape_type"]
             flags: dict = shape["flags"] or {}
-            description = shape.get("description", "")
             group_id = shape["group_id"]
             other_data = shape["other_data"]
 
@@ -1371,9 +1389,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
             shape = Shape(
                 label=label,
+                annotation=annotation,
+                annotation_eng=annotation_eng,
                 shape_type=shape_type,
                 group_id=group_id,
-                description=description,
                 mask=shape["mask"],
             )
             for x, y in points:
@@ -1409,9 +1428,10 @@ class MainWindow(QtWidgets.QMainWindow):
             data.update(
                 dict(
                     label=s.label,
+                    annotation=s.annotation,
+                    annotation_eng=s.annotation_eng,
                     points=[(p.x(), p.y()) for p in s.points],
                     group_id=s.group_id,
-                    description=s.description,
                     shape_type=s.shape_type,
                     flags=s.flags,
                     mask=None
@@ -1503,10 +1523,9 @@ class MainWindow(QtWidgets.QMainWindow):
             text = items[0].data(Qt.UserRole)  # type: ignore[attr-defined]
         flags = {}
         group_id = None
-        description = ""
         if self._config["display_label_popup"] or not text:
-            previous_text = self.labelDialog.edit.text()
-            text, flags, group_id, description = self.labelDialog.popUp(text)
+            previous_text = self.labelDialog.editList.currentText()
+            text, annotation, annotation_eng, flags, group_id = self.labelDialog.popUp(text)
             if not text:
                 self.labelDialog.edit.setText(previous_text)
 
@@ -1522,7 +1541,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.labelList.clearSelection()
             shape = self.canvas.setLastLabel(text, flags)
             shape.group_id = group_id
-            shape.description = description
+            shape.annotation = annotation
+            shape.annotation_eng = annotation_eng
             self.addLabel(shape)
             self.actions.editMode.setEnabled(True)  # type: ignore[attr-defined]
             self.actions.undoLastPoint.setEnabled(False)  # type: ignore[attr-defined]
@@ -2216,3 +2236,91 @@ class MainWindow(QtWidgets.QMainWindow):
                     images.append(relativePath)
         images = natsort.os_sorted(images)
         return images
+
+    def setHeight(self):
+        height, okPressed = QInputDialog.getInt(self, "Input", "Input the height:")
+        if okPressed:
+            self.canvas.predefined_height = height
+
+    def pointReco(self):
+        if self.filename is None:
+            return
+        ImageData = PIL.Image.open(self.filename).convert('RGB')
+        ImageDataPure = PIL.Image.open(self.filename.replace('.png', '-纯净图.png')).convert('RGB')
+        diff = utils.compare_images1(ImageDataPure, ImageData)
+        ocr_data, json_raw = self.API.ocr(diff)
+        diff_cv = utils.pil2cv(diff)
+
+        pic1 = utils.morphological1(diff_cv)
+        pic2 = utils.morphological2(diff_cv)
+
+        img_pil1 = utils.cv2pil(pic1)
+        img_pil2 = utils.cv2pil(pic2)
+
+        # result = utils.compare_images1(img_pil2, img_pil1)
+        result = diff_cv
+        result_cv = utils.pil2cv(result)
+        line_data = utils.rm_words(result_cv, json_raw)
+
+        kernel = np.ones((9, 9), np.uint8)
+        line_data = utils.cv2pil(cv2.morphologyEx(utils.pil2cv(line_data), cv2.MORPH_CLOSE, kernel))
+
+        # Line Recognition
+        img0 = utils.pil2cv(line_data)
+        line_data = cv2.cvtColor(img0, cv2.COLOR_BGR2GRAY)
+        LineSegmentDetector = cv2.createLineSegmentDetector(0)
+        dlines = LineSegmentDetector.detect(line_data)
+
+        coordinate = []
+
+        for dline in dlines[0]:
+            x0 = float(dline[0][0])
+            y0 = float(dline[0][1])
+            x1 = float(dline[0][2])
+            y1 = float(dline[0][3])
+            coordinate.append((x0, y0))
+            coordinate.append((x1, y1))
+
+        points = utils.merge_points_within_distance(coordinate, ImageData.size[0] / 20)
+
+        for point in points:
+            point_shape = Shape(
+                label="TBD",
+                # category=category,
+                annotation=None,
+                annotation_eng=None,
+                shape_type="point",
+                group_id=None,
+            )
+            point_shape.flags = {}
+            point_shape.addPoint(QtCore.QPointF(point[0], point[1]))
+            self.addLabel(point_shape)
+        for word in json_raw['words_result']:
+            print(word['words'], word['location'])
+            shape = Shape(
+                label="Text",
+                # category=category,
+                annotation=word['words'],
+                annotation_eng=None,
+                shape_type="rectangle",
+                group_id=None,
+            )
+            shape.flags = {}
+            if not self._config["reco_limit"]:
+                shape.addPoint(QtCore.QPointF(word['location']['left'], word['location']['top']))
+                shape.addPoint(QtCore.QPointF(word['location']['left'] + word['location']['width'],
+                                              word['location']['top'] + word['location']['height']))
+            else:
+                shape.addPoint(QtCore.QPointF(word['location']['left'], word['location']['top']))
+                shape.addPoint(QtCore.QPointF(word['location']['left'] + word['location']['width'],
+                                              word['location']['top'] + self.canvas.predefined_height))
+            self.addLabel(shape)
+            self.setDirty()
+
+    def AddFlag(self, flag):
+        flag, okPressed = QInputDialog.getText(self, "Input", "Input the flag name:")
+        if okPressed and flag != '':
+            item = QtWidgets.QListWidgetItem(flag)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.flag_widget.addItem(item)

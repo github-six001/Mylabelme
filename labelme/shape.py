@@ -41,14 +41,18 @@ class Shape(object):
     def __init__(
         self,
         label=None,
+        annotation=None,
+        annotation_eng=None,
         line_color=None,
         shape_type=None,
         flags=None,
         group_id=None,
-        description=None,
         mask=None,
     ):
+        self.annotation = None
         self.label = label
+        self.annotation = annotation
+        self.annotation_eng = annotation_eng
         self.group_id = group_id
         self.points = []
         self.point_labels = []
@@ -59,7 +63,6 @@ class Shape(object):
         self.fill = False
         self.selected = False
         self.flags = flags
-        self.description = description
         self.other_data = {}
         self.mask = mask
 

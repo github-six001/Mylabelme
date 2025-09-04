@@ -39,13 +39,34 @@ class LabelDialog(QtWidgets.QDialog):
             fit_to_content = {"row": False, "column": True}
         self._fit_to_content = fit_to_content
 
+        # 设置固定的标签选项(TODO 这个地方没有用到配置文件的内容，待解决)
+        if labels is None:
+            labels = ["Text", "Connection", "Anchor", "Inflection"]
+        self._labels = labels
+
         super(LabelDialog, self).__init__(parent)
+        self.editList = QtWidgets.QComboBox()
+        self.editList.setEditable(False)
+        if self._fit_to_content["row"]:
+            self.editList.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        if self._fit_to_content["column"]:
+            self.editList.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        for label in labels:
+            self.editList.addItem(label)
+        self.editList.setFixedHeight(30)
         self.edit = LabelQLineEdit()
-        self.edit.setPlaceholderText(text)
-        self.edit.setValidator(labelme.utils.labelValidator())
-        self.edit.editingFinished.connect(self.postProcess)
+
         if flags:
-            self.edit.textChanged.connect(self.updateFlags)
+            self.editList.currentIndexChanged.connect(self.updateFlags)
+        self.editList.currentIndexChanged.connect(self.labelSelected)
+        # 新增两个输入框 分别输入中文和英文
+        self.edit_cn = LabelQLineEdit()
+        self.edit_cn.setPlaceholderText("Annotation chinese")
+        self.edit_cn.setValidator(labelme.utils.labelValidator())
+        self.edit_en = LabelQLineEdit()
+        self.edit_en.setPlaceholderText("Annotation English")
+        self.edit_en.setValidator(labelme.utils.labelValidator())
+
         self.edit_group_id = QtWidgets.QLineEdit()
         self.edit_group_id.setPlaceholderText("Group ID")
         self.edit_group_id.setValidator(
@@ -54,7 +75,9 @@ class LabelDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout()
         if show_text_field:
             layout_edit = QtWidgets.QHBoxLayout()
-            layout_edit.addWidget(self.edit, 6)
+            layout_edit.addWidget(self.editList, 6)
+            layout_edit.addWidget(self.edit_cn, 6)
+            layout_edit.addWidget(self.edit_en, 6)
             layout_edit.addWidget(self.edit_group_id, 2)
             layout.addLayout(layout_edit)
         # buttons
@@ -68,24 +91,6 @@ class LabelDialog(QtWidgets.QDialog):
         bb.accepted.connect(self.validate)
         bb.rejected.connect(self.reject)
         layout.addWidget(bb)
-        # label_list
-        self.labelList = QtWidgets.QListWidget()
-        if self._fit_to_content["row"]:
-            self.labelList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)  # type: ignore[attr-defined]
-        if self._fit_to_content["column"]:
-            self.labelList.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)  # type: ignore[attr-defined]
-        self._sort_labels = sort_labels
-        if labels:
-            self.labelList.addItems(labels)
-        if self._sort_labels:
-            self.labelList.sortItems()
-        else:
-            self.labelList.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
-        self.labelList.currentItemChanged.connect(self.labelSelected)
-        self.labelList.itemDoubleClicked.connect(self.labelDoubleClicked)
-        self.labelList.setFixedHeight(150)
-        self.edit.setListWidget(self.labelList)
-        layout.addWidget(self.labelList)
         # label_flags
         if flags is None:
             flags = {}
@@ -93,26 +98,12 @@ class LabelDialog(QtWidgets.QDialog):
         self.flagsLayout = QtWidgets.QVBoxLayout()
         self.resetFlags()
         layout.addItem(self.flagsLayout)
-        self.edit.textChanged.connect(self.updateFlags)
         # text edit
-        self.editDescription = QtWidgets.QTextEdit()
-        self.editDescription.setPlaceholderText("Label description")
-        self.editDescription.setFixedHeight(50)
-        layout.addWidget(self.editDescription)
+        # self.editDescription = QtWidgets.QTextEdit()
+        # self.editDescription.setPlaceholderText("Label description")
+        # self.editDescription.setFixedHeight(50)
+        # layout.addWidget(self.editDescription)
         self.setLayout(layout)
-        # completion
-        completer = QtWidgets.QCompleter()
-        if completion == "startswith":
-            completer.setCompletionMode(QtWidgets.QCompleter.InlineCompletion)  # type: ignore[attr-defined]
-            # Default settings.
-            # completer.setFilterMode(QtCore.Qt.MatchStartsWith)
-        elif completion == "contains":
-            completer.setCompletionMode(QtWidgets.QCompleter.PopupCompletion)  # type: ignore[attr-defined]
-            completer.setFilterMode(QtCore.Qt.MatchContains)  # type: ignore[attr-defined]
-        else:
-            raise ValueError("Unsupported completion: {}".format(completion))
-        completer.setModel(self.labelList.model())
-        self.edit.setCompleter(completer)
 
     def addLabelHistory(self, label):
         if self.labelList.findItems(label, QtCore.Qt.MatchExactly):  # type: ignore[attr-defined]
@@ -121,8 +112,9 @@ class LabelDialog(QtWidgets.QDialog):
         if self._sort_labels:
             self.labelList.sortItems()
 
-    def labelSelected(self, item):
-        self.edit.setText(item.text())
+    def labelSelected(self, index):
+        text = self.editList.itemText(index)
+        self.edit.setText(text)
 
     def validate(self):
         if not self.edit.isEnabled():
@@ -151,6 +143,7 @@ class LabelDialog(QtWidgets.QDialog):
     def updateFlags(self, label_new):
         # keep state of shared flags
         flags_old = self.getFlags()
+        self.edit.setText(self.editList.currentText())
 
         flags_new = {}
         for pattern, keys in self._flags.items():
@@ -195,28 +188,46 @@ class LabelDialog(QtWidgets.QDialog):
             return int(group_id)
         return None
 
+
+    def getAnnotation(self):
+        annotation = self.edit_cn.text()
+        if annotation:
+            return annotation
+        return None
+
+    def getAnnotationEng(self):
+        annotation_eng = self.edit_en.text()
+        if annotation_eng:
+            return annotation_eng
+        return None
+
+
+    def show_edited_text(self):
+        print(self.edit.text())
+
+
     def popUp(
         self,
         text=None,
+        annotation=None,
+        annotation_eng=None,
         move=True,
         flags=None,
         group_id=None,
         description=None,
         flags_disabled: bool = False,
     ):
-        if self._fit_to_content["row"]:
-            self.labelList.setMinimumHeight(
-                self.labelList.sizeHintForRow(0) * self.labelList.count() + 2
-            )
-        if self._fit_to_content["column"]:
-            self.labelList.setMinimumWidth(self.labelList.sizeHintForColumn(0) + 2)
         # if text is None, the previous label in self.edit is kept
         if text is None:
-            text = self.edit.text()
+            text = self.editList.currentText()
+        if annotation is None:
+            annotation = self.edit_cn.text()
+        if annotation_eng is None:
+            annotation_eng = self.edit_en.text()
         # description is always initialized by empty text c.f., self.edit.text
-        if description is None:
-            description = ""
-        self.editDescription.setPlainText(description)
+        # if description is None:
+        #     description = ""
+        # self.editDescription.setPlainText(description)
         if flags:
             self.setFlags(flags)
         else:
@@ -225,27 +236,36 @@ class LabelDialog(QtWidgets.QDialog):
             for i in range(self.flagsLayout.count()):
                 self.flagsLayout.itemAt(i).widget().setDisabled(True)
         self.edit.setText(text)
+        self.edit_cn.setText(annotation)
+        self.edit_en.setText(annotation_eng)
         self.edit.setSelection(0, len(text))
         if group_id is None:
             self.edit_group_id.clear()
         else:
             self.edit_group_id.setText(str(group_id))
-        items = self.labelList.findItems(text, QtCore.Qt.MatchFixedString)  # type: ignore[attr-defined]
-        if items:
-            if len(items) != 1:
-                logger.warning("Label list has duplicate '{}'".format(text))
-            self.labelList.setCurrentItem(items[0])
-            row = self.labelList.row(items[0])
-            self.edit.completer().setCurrentRow(row)  # type: ignore[union-attr]
-        self.edit.setFocus(QtCore.Qt.PopupFocusReason)  # type: ignore[attr-defined]
+        # items = self.labelList.findItems(text, QtCore.Qt.MatchFixedString)  # type: ignore[attr-defined]
+        # if items:
+        #     if len(items) != 1:
+        #         logger.warning("Label list has duplicate '{}'".format(text))
+        #     self.labelList.setCurrentItem(items[0])
+        #     row = self.labelList.row(items[0])
+        #     self.edit.completer().setCurrentRow(row)  # type: ignore[union-attr]
+        # self.edit.setFocus(QtCore.Qt.PopupFocusReason)  # type: ignore[attr-defined]
+        # index = self.labelList.findText(text, QtCore.Qt.MatchFixedString)  # type: ignore[attr-defined]
+        # if index >= 0:
+        #     self.labelList.setCurrentIndex(index)
+        #     self.edit.completer().setCurrentRow(index)  # type: ignore[union-attr]
+        # self.edit.setFocus(QtCore.Qt.PopupFocusReason)  # type: ignore[attr-defined]
         if move:
             self.move(QtGui.QCursor.pos())
         if self.exec_():
             return (
                 self.edit.text(),
+                self.getAnnotation(),
+                self.getAnnotationEng(),
                 self.getFlags(),
                 self.getGroupId(),
-                self.editDescription.toPlainText(),
+                # self.editDescription.toPlainText(),
             )
         else:
-            return None, None, None, None
+            return None, None, None, None, None

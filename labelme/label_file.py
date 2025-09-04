@@ -69,11 +69,12 @@ class LabelFile(object):
         ]
         shape_keys = [
             "label",
+            "annotation",
+            "annotation_eng",
             "points",
             "group_id",
             "shape_type",
             "flags",
-            "description",
             "mask",
         ]
         try:
@@ -96,10 +97,11 @@ class LabelFile(object):
             shapes = [
                 dict(
                     label=s["label"],
+                    annotation=s["annotation"],
+                    annotation_eng=s["annotation_eng"],
                     points=s["points"],
                     shape_type=s.get("shape_type", "polygon"),
                     flags=s.get("flags", {}),
-                    description=s.get("description"),
                     group_id=s.get("group_id"),
                     mask=utils.img_b64_to_arr(s["mask"]).astype(bool)
                     if s.get("mask")

@@ -29,7 +29,7 @@ def get_default_config():
         config = yaml.safe_load(f)
 
     # save default config to ~/.labelmerc
-    user_config_file = osp.join(osp.expanduser("~"), ".labelmerc")
+    user_config_file = osp.join(here, ".labelmerc")
     if not osp.exists(user_config_file):
         try:
             shutil.copy(config_file, user_config_file)

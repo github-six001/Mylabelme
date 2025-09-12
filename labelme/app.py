@@ -35,12 +35,12 @@ from labelme.widgets import LabelListWidgetItem
 from labelme.widgets import ToolBar
 from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
-
-from paddleocr import PaddleOCR
+# 取消paddleocr初始化
+# from paddleocr import PaddleOCR
 from . import utils
 
 # 导入OCR矩形创建器
-from .ocr_rectangle_creator import OCRRectangleCreator
+# from .ocr_rectangle_creator import OCRRectangleCreator
 
 # FIXME
 # - [medium] Set max zoom value to something big enough for FitWidth/Window
@@ -50,8 +50,6 @@ from .ocr_rectangle_creator import OCRRectangleCreator
 
 
 LABEL_COLORMAP = imgviz.label_colormap()
-# 打开的当前文件的地址
-OCR_FILEPATH = None
 
 class MainWindow(QtWidgets.QMainWindow):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = 0, 1, 2
@@ -213,19 +211,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, self.shape_dock)  # type: ignore[attr-defined]
         self.addDockWidget(Qt.RightDockWidgetArea, self.file_dock)  # type: ignore[attr-defined]
 
-        self.ocr_creator = OCRRectangleCreator(self)
+        # 取消paddleocr初始化
+        # self.ocr_creator = OCRRectangleCreator(self)
 
         # Actions
         action = functools.partial(utils.newAction, self)
         shortcuts = self._config["shortcuts"]
 
-        ocr_batch_rectangles = action(
-            self.tr("OCR"),
-            self.ocr_creator.show_ocr_dialog,
-            "Ctrl+Shift+O",
-            "open",
-            self.tr("Use OCR to batch create rectangles from text detection"),
-        )
+        # 取消paddleocr初始化
+        # ocr_batch_rectangles = action(
+        #     self.tr("OCR"),
+        #     self.ocr_creator.show_ocr_dialog,
+        #     "Ctrl+Shift+O",
+        #     "open",
+        #     self.tr("Use OCR to batch create rectangles from text detection"),
+        # )
 
         quit = action(
             self.tr("&Quit"),
@@ -654,8 +654,8 @@ class MainWindow(QtWidgets.QMainWindow):
             changeOutputDir=changeOutputDir,
             save=save,
             saveAs=saveAs,
-            # ocr_action=ocr_action,
-            ocr_batch_rectangles=ocr_batch_rectangles,
+            # 取消paddleocr初始化
+            # ocr_batch_rectangles=ocr_batch_rectangles,
             open=open_,
             close=close,
             deleteFile=deleteFile,
@@ -755,7 +755,8 @@ class MainWindow(QtWidgets.QMainWindow):
         utils.addActions(
             self.menus.file,  # type: ignore[attr-defined]
             (
-                ocr_batch_rectangles,
+                # 取消paddleocr初始化
+                # ocr_batch_rectangles,
                 open_,
                 openNextImg,
                 openPrevImg,
@@ -857,8 +858,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tools = self.toolbar("Tools")
         self.actions.tool = (
-            # ocr_action,# type: ignore[attr-defined]
-            ocr_batch_rectangles,  # 添加OCR批量创建按钮
+            # 取消paddleocr初始化
+            # ocr_batch_rectangles,  # 添加OCR批量创建按钮
             open_,
             opendir,
             openPrevImg,
@@ -1927,7 +1928,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._config["keep_prev"] = keep_prev
 
-    # 该方法中的filename为OCR功能需要使用到的绝对路径
     def openFile(self, _value=False):
         if not self.mayContinue():
             return
@@ -1949,8 +1949,6 @@ class MainWindow(QtWidgets.QMainWindow):
         fileDialog.setViewMode(FileDialogPreview.Detail)
         if fileDialog.exec_():
             fileName = fileDialog.selectedFiles()[0]
-            global OCR_FILEPATH
-            OCR_FILEPATH = self.filename
             if fileName:
                 self.loadFile(fileName)
 

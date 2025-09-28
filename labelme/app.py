@@ -36,7 +36,6 @@ from labelme.widgets import ToolBar
 from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
 
-from paddleocr import PaddleOCR
 from . import utils
 
 # 导入OCR矩形创建器
@@ -113,7 +112,7 @@ class MainWindow(QtWidgets.QMainWindow):
             fit_to_content=self._config["fit_to_content"],
             flags=self._config["label_flags"],
         )
-
+        # 右侧标签列表
         self.labelList = LabelListWidget()
         self.lastOpenDir = None
 
@@ -866,7 +865,8 @@ class MainWindow(QtWidgets.QMainWindow):
             save,
             deleteFile,
             None,
-            createMode,
+            createRectangleMode,
+            createPointMode,
             editMode,
             duplicate,
             delete,
@@ -1223,36 +1223,41 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if not edit_text:
             self.labelDialog.edit.setDisabled(True)
+            self.labelDialog.edit_cn.setDisabled(True)
+            self.labelDialog.edit_en.setDisabled(True)
             self.labelDialog.labelList.setDisabled(True)
         if not edit_group_id:
             self.labelDialog.edit_group_id.setDisabled(True)
 
 
-        text, annotation, annotation_eng ,flags, group_id = self.labelDialog.popUp(
+        label, annotation, annotation_eng ,flags, group_id = self.labelDialog.popUp(
             text=shape.label if edit_text else "",
             annotation=shape.annotation,
             annotation_eng=shape.annotation_eng,
             flags=shape.flags if edit_flags else None,
             group_id=shape.group_id if edit_group_id else None,
             flags_disabled=not edit_flags,
+            move=False,
         )
 
         if not edit_text:
             self.labelDialog.edit.setDisabled(False)
+            self.labelDialog.edit_cn.setDisabled(False)
+            self.labelDialog.edit_en.setDisabled(False)
             self.labelDialog.labelList.setDisabled(False)
         if not edit_group_id:
             self.labelDialog.edit_group_id.setDisabled(False)
 
-        if text is None:
+        if label is None:
             assert flags is None
             assert group_id is None
             return
 
-        if not self.validateLabel(text):
+        if not self.validateLabel(label):
             self.errorMessage(
                 self.tr("Invalid label"),
                 self.tr("Invalid label '{}' with validation type '{}'").format(
-                    text, self._config["validate_label"]
+                    label, self._config["validate_label"]
                 ),
             )
             return
@@ -1262,7 +1267,7 @@ class MainWindow(QtWidgets.QMainWindow):
             shape: Shape = item.shape()  # type: ignore[no-redef]
 
             if edit_text:
-                shape.label = text
+                shape.label = label
                 shape.annotation = annotation
                 shape.annotation_eng = annotation_eng
             if edit_flags:
@@ -1271,14 +1276,20 @@ class MainWindow(QtWidgets.QMainWindow):
                 shape.group_id = group_id
 
             self._update_shape_color(shape)
-            if shape.group_id is None:
-                item.setText(
-                    '{} <font color="#{:02x}{:02x}{:02x}">●</font>'.format(
-                        html.escape(shape.label), *shape.fill_color.getRgb()[:3]
-                    )
-                )
-            else:
-                item.setText("{} ({})".format(shape.label, shape.group_id))
+            # 根据新的规则设标签列表显示的内容
+            if shape.annotation:
+                if shape.group_id is not None:
+                    showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                                .format(shape.annotation, shape.group_id, *shape.fill_color.getRgb()[:3]))
+                else:
+                    showText = '{}'.format(html.escape(shape.annotation))
+            else:  # 如果annotation为空
+                if shape.group_id is not None:
+                    showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                                .format(shape.annotation_eng, shape.group_id, *shape.fill_color.getRgb()[:3]))
+                else:
+                    showText = '{}'.format(html.escape(shape.annotation_eng))
+            item.setText(showText)
             self.setDirty()
             if self.uniqLabelList.findItemByLabel(shape.label) is None:
                 item = self.uniqLabelList.createItemFromLabel(shape.label)
@@ -1328,11 +1339,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.edit.setEnabled(n_selected)  # type: ignore[attr-defined]
 
     def addLabel(self, shape):
-        if shape.group_id is None:
-            text = shape.label
-        else:
-            text = "{} ({})".format(shape.label, shape.group_id)
-        label_list_item = LabelListWidgetItem(text, shape)
+        # 根据新的规则设标签列表显示的内容
+        if shape.annotation:
+            if shape.group_id is not None:
+                showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                            .format(shape.annotation, shape.group_id,*shape.fill_color.getRgb()[:3]))
+            else:
+                showText = '{}'.format(html.escape(shape.annotation))
+        else:  # 如果annotation为空
+            if shape.group_id is not None:
+                showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                            .format(shape.annotation_eng,shape.group_id,*shape.fill_color.getRgb()[:3]))
+            else:
+                showText = '{}'.format(html.escape(shape.annotation_eng))
+        label_list_item = LabelListWidgetItem(showText, shape)
         self.labelList.addItem(label_list_item)
         if self.uniqLabelList.findItemByLabel(shape.label) is None:
             item = self.uniqLabelList.createItemFromLabel(shape.label)
@@ -1344,11 +1364,7 @@ class MainWindow(QtWidgets.QMainWindow):
             action.setEnabled(True)
 
         self._update_shape_color(shape)
-        label_list_item.setText(
-            '{} <font color="#{:02x}{:02x}{:02x}">●</font>'.format(
-                html.escape(text), *shape.fill_color.getRgb()[:3]
-            )
-        )
+        label_list_item.setText(showText)
 
     def _update_shape_color(self, shape):
         r, g, b = self._get_rgb_by_label(shape.label)

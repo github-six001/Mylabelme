@@ -146,11 +146,6 @@ class OCRRectangleCreator:
             text = result['text']
             confidence = result['confidence']
 
-            # 确定标签
-            if auto_label:
-                label = text
-            else:
-                label = "text"
 
             is_chinese_text = self.is_chinese(text)
 
@@ -165,7 +160,7 @@ class OCRRectangleCreator:
             # 创建矩形
             success = self.create_single_rectangle(
                 bbox[0], bbox[1], bbox[2], bbox[3],
-                label, annotation, annotation_eng
+                "Text", annotation, annotation_eng
             )
 
             if success:
@@ -216,8 +211,8 @@ class OCRRectangleCreator:
             shape.close()
             self.main_window.canvas.storeShapes()
             self.main_window.loadShapes([shape], replace=False)
-            self.main_window.setDirty()
             # self.main_window.addLabel(shape)
+            self.main_window.setDirty()
             self.main_window.canvas.update()
             return True
         except Exception as e:

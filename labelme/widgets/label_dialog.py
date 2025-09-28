@@ -220,14 +220,16 @@ class LabelDialog(QtWidgets.QDialog):
         # if text is None, the previous label in self.edit is kept
         if text is None:
             text = self.editList.currentText()
+        #如果未传入annotation，则清空显示内容，否则显示传入的值进行显示
         if annotation is None:
-            annotation = self.edit_cn.text()
+            self.edit_cn.clear()
+        else:
+            self.edit_cn.setText(annotation)
+        # 如果未传入annotation_eng，则清空显示内容，否则显示传入的值进行显示
         if annotation_eng is None:
-            annotation_eng = self.edit_en.text()
-        # description is always initialized by empty text c.f., self.edit.text
-        # if description is None:
-        #     description = ""
-        # self.editDescription.setPlainText(description)
+            self.edit_en.clear()
+        else:
+            self.edit_en.setText(annotation_eng)
         if flags:
             self.setFlags(flags)
         else:
@@ -236,8 +238,6 @@ class LabelDialog(QtWidgets.QDialog):
             for i in range(self.flagsLayout.count()):
                 self.flagsLayout.itemAt(i).widget().setDisabled(True)
         self.edit.setText(text)
-        self.edit_cn.setText(annotation)
-        self.edit_en.setText(annotation_eng)
         self.edit.setSelection(0, len(text))
         if group_id is None:
             self.edit_group_id.clear()

@@ -219,7 +219,7 @@ class LabelDialog(QtWidgets.QDialog):
     ):
         # if text is None, the previous label in self.edit is kept
         if text is None:
-            text = self.editList.currentText()
+            text = 'Text'
         #如果未传入annotation，则清空显示内容，否则显示传入的值进行显示
         if annotation is None:
             self.edit_cn.clear()
@@ -238,7 +238,9 @@ class LabelDialog(QtWidgets.QDialog):
             for i in range(self.flagsLayout.count()):
                 self.flagsLayout.itemAt(i).widget().setDisabled(True)
         self.edit.setText(text)
-        self.edit.setSelection(0, len(text))
+        index = self.editList.findText(text)  # 查找特定文本的索引
+        if index >= 0:
+            self.editList.setCurrentIndex(index)  # 设置选中该索引
         if group_id is None:
             self.edit_group_id.clear()
         else:

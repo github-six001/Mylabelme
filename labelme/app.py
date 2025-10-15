@@ -1279,16 +1279,16 @@ class MainWindow(QtWidgets.QMainWindow):
             # 根据新的规则设标签列表显示的内容
             if shape.annotation:
                 if shape.group_id is not None:
-                    showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                                .format(shape.annotation, shape.group_id, *shape.fill_color.getRgb()[:3]))
+                    showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                                .format(shape.label,shape.annotation, shape.group_id, *shape.fill_color.getRgb()[:3]))
                 else:
-                    showText = '{}'.format(html.escape(shape.annotation))
+                    showText = '{}_{}'.format(shape.label,html.escape(shape.annotation))
             else:  # 如果annotation为空
                 if shape.group_id is not None:
-                    showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                                .format(shape.annotation_eng, shape.group_id, *shape.fill_color.getRgb()[:3]))
+                    showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                                .format(shape.label, shape.annotation_eng, shape.group_id, *shape.fill_color.getRgb()[:3]))
                 else:
-                    showText = '{}'.format(html.escape(shape.annotation_eng))
+                    showText = '{}_{}'.format(shape.label,html.escape( shape.annotation_eng))
             item.setText(showText)
             self.setDirty()
             if self.uniqLabelList.findItemByLabel(shape.label) is None:
@@ -1342,16 +1342,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # 根据新的规则设标签列表显示的内容
         if shape.annotation:
             if shape.group_id is not None:
-                showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                            .format(shape.annotation, shape.group_id,*shape.fill_color.getRgb()[:3]))
+                showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                            .format(shape.label, shape.annotation, shape.group_id, *shape.fill_color.getRgb()[:3]))
             else:
-                showText = '{}'.format(html.escape(shape.annotation))
+                showText = '{}_{}'.format(shape.label,html.escape(shape.annotation))
         else:  # 如果annotation为空
             if shape.group_id is not None:
-                showText = ('{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                            .format(shape.annotation_eng,shape.group_id,*shape.fill_color.getRgb()[:3]))
+                showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                            .format(shape.label, shape.annotation_eng, shape.group_id, *shape.fill_color.getRgb()[:3]))
             else:
-                showText = '{}'.format(html.escape(shape.annotation_eng))
+                showText = '{}_{}'.format(shape.label,html.escape(shape.annotation_eng))
         label_list_item = LabelListWidgetItem(showText, shape)
         self.labelList.addItem(label_list_item)
         if self.uniqLabelList.findItemByLabel(shape.label) is None:
@@ -2031,7 +2031,10 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
         dlg.setOption(QtWidgets.QFileDialog.DontConfirmOverwrite, False)
         dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, False)
-        basename = osp.basename(osp.splitext(self.filename)[0])
+        if self.filename is not None:
+            basename = osp.basename(osp.splitext(self.filename)[0])
+        else:
+            basename = "untitled"  # 或其他默认文件名
         if self.output_dir:
             default_labelfile_name = osp.join(
                 self.output_dir, basename + LabelFile.suffix

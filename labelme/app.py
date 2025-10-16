@@ -1276,19 +1276,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 shape.group_id = group_id
 
             self._update_shape_color(shape)
+
             # 根据新的规则设标签列表显示的内容
-            if shape.annotation:
-                if shape.group_id is not None:
-                    showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                                .format(shape.label,shape.annotation, shape.group_id, *shape.fill_color.getRgb()[:3]))
-                else:
-                    showText = '{}_{}'.format(shape.label,html.escape(shape.annotation))
-            else:  # 如果annotation为空
-                if shape.group_id is not None:
-                    showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                                .format(shape.label, shape.annotation_eng, shape.group_id, *shape.fill_color.getRgb()[:3]))
-                else:
-                    showText = '{}_{}'.format(shape.label,html.escape( shape.annotation_eng))
+            if shape.label == "Inflection":
+                secondText = "{}_{}".format(shape.annotation or "null", shape.annotation_eng or "null")
+            else:
+                secondText = shape.annotation or shape.annotation_eng or ""
+
+            if shape.group_id is not None:
+                showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                            .format(shape.label, secondText, shape.group_id, *shape.fill_color.getRgb()[:3]))
+            else:
+                showText = '{}_{}'.format(shape.label, secondText)
             item.setText(showText)
             self.setDirty()
             if self.uniqLabelList.findItemByLabel(shape.label) is None:
@@ -1340,18 +1339,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def addLabel(self, shape):
         # 根据新的规则设标签列表显示的内容
-        if shape.annotation:
-            if shape.group_id is not None:
-                showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                            .format(shape.label, shape.annotation, shape.group_id, *shape.fill_color.getRgb()[:3]))
-            else:
-                showText = '{}_{}'.format(shape.label,html.escape(shape.annotation))
-        else:  # 如果annotation为空
-            if shape.group_id is not None:
-                showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
-                            .format(shape.label, shape.annotation_eng, shape.group_id, *shape.fill_color.getRgb()[:3]))
-            else:
-                showText = '{}_{}'.format(shape.label,html.escape(shape.annotation_eng))
+        if shape.label == "Inflection":
+            secondText = "{}_{}".format(shape.annotation or "null",shape.annotation_eng or "null")
+        else:
+            secondText = shape.annotation or shape.annotation_eng or ""
+
+        if shape.group_id is not None:
+            showText = ('{}_{} ({}) <font color="#{:02x}{:02x}{:02x}">●</font>'
+                            .format(shape.label, secondText, shape.group_id, *shape.fill_color.getRgb()[:3]))
+        else:
+            showText = '{}_{}'.format(shape.label, secondText)
         label_list_item = LabelListWidgetItem(showText, shape)
         self.labelList.addItem(label_list_item)
         if self.uniqLabelList.findItemByLabel(shape.label) is None:

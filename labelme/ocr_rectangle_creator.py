@@ -41,12 +41,20 @@ class OCRRectangleCreator:
             models_path = get_models_path()
             det_model_path = os.path.join(models_path, "PP-OCRv5_server_det")
             rec_model_path = os.path.join(models_path, "PP-OCRv5_server_rec")
+
             self.ocr = PaddleOCR(
                 use_doc_orientation_classify=False,
                 use_doc_unwarping=False,
                 det_model_dir=det_model_path,
                 rec_model_dir=rec_model_path,
-                use_textline_orientation=False)
+                use_textline_orientation=False
+                ,cpu_threads=16,
+                text_det_limit_side_len=960,
+                text_det_limit_type='max',
+                textline_orientation_batch_size=16,
+                text_recognition_batch_size=16,
+                enable_mkldnn = True
+            )
             print("PaddleOCR初始化成功")
         except Exception as e:
             print(f"PaddleOCR初始化失败: {e}")
@@ -160,7 +168,7 @@ class OCRRectangleCreator:
             # 创建矩形
             success = self.create_single_rectangle(
                 bbox[0], bbox[1], bbox[2], bbox[3],
-                "Text", annotation, annotation_eng
+                "Text", annotation, annotation_eng,created_count+1
             )
 
             if success:
@@ -173,7 +181,7 @@ class OCRRectangleCreator:
 
         return created_count
 
-    def create_single_rectangle(self, x1, y1, x2, y2, label, annotation=None, annotation_eng=None):
+    def create_single_rectangle(self, x1, y1, x2, y2, label, annotation=None, annotation_eng=None,group_id=None):
         """
         创建单个矩形
 
@@ -183,6 +191,7 @@ class OCRRectangleCreator:
             label: 标签文本
             annotation: 中文注释
             annotation_eng: 英文注释
+            group_id: 默认组号
 
         Returns:
             bool: 是否创建成功
@@ -205,6 +214,7 @@ class OCRRectangleCreator:
                 annotation=annotation,
                 annotation_eng=annotation_eng,
                 shape_type="rectangle",
+                group_id=group_id,
             )
             shape.addPoint(QtCore.QPointF(x1, y1))
             shape.addPoint(QtCore.QPointF(x2, y2))
@@ -353,3 +363,47 @@ def get_models_path():
         base_path = os.path.dirname(os.path.abspath(__file__))
         base_path = os.path.join(base_path, "..", "models")
     return base_path
+
+
+def preprocess_image(img):
+    """
+    对输入图像进行预处理以优化OCR识别效果
+
+    Args:
+        img: 输入图像(BGR格式)
+
+    Returns:
+        预处理后的图像
+    """
+    # 步骤1：转换为灰度图
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img.copy()
+
+    # 步骤2：限制图像最大尺寸，避免处理过大图像
+    max_size = 960
+    h, w = gray.shape[:2]
+    if max(h, w) > max_size:
+        scale = max_size / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+    # 步骤3：噪声去除（根据图像质量选择）
+    # 使用中值滤波去除椒盐噪声，同时保护边缘
+    denoised = cv2.medianBlur(gray, 3)  # 核大小设为3，更温和
+
+    # 步骤4：对比度增强（使用CLAHE）
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(denoised)
+
+    # 步骤5：二值化 - 使用自适应阈值处理光照不均
+    # 注意：PaddleOCR通常更适应白底黑字的输入
+    binary = cv2.adaptiveThreshold(enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 11, 2)
+
+    # 步骤6：可选的后处理 - 使用形态学操作改善文字质量
+    # 如果文字有断裂，可以使用闭运算连接
+    processed_img = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+
+    return processed_img

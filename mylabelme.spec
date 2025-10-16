@@ -27,8 +27,8 @@ except ImportError:
 a = Analysis(
     ['labelme\\__main__.py'],
     pathex=[os.path.abspath('.'),LABELME_PATH],
-    binaries=paddle_binaries + [],
-    datas=paddle_datas+ [
+    binaries=[],
+    datas=[
             # OSAM 模型文件
         (os.path.join(OSAM_PATH, '_models', 'yoloworld', 'clip', 'bpe_simple_vocab_16e6.txt.gz'),
          os.path.join('osam', '_models', 'yoloworld', 'clip')),
@@ -53,7 +53,10 @@ a = Analysis(
         ('models', 'models'),
 #        (site_packages_path, '_internal'),
                 # 配置文件等其他资源
-#        ('config/*', 'config'),
+        ('labelme/config/*', 'config'),
+#        通过*号无法将 .labelmerc 打包进config
+        ('labelme/config/.labelmerc', 'config'),
+
     ],
     hiddenimports=[
     'paddleocr',
@@ -61,10 +64,6 @@ a = Analysis(
     'paddle',
     'paddle.nn',
     'paddle.nn.functional',
-    'cv2',
-    'numpy',
-    'scipy',
-    'PIL',
     'pkg_resources',
     'pyclipper',
     'shapely',
